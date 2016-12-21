@@ -9,7 +9,46 @@ namespace boost {
     namespace numeric {
         namespace ublas {
             namespace details {
+				template <class T>
+				T wolf_min(const Function<T> & f, const vector<T> & x, vector<T> const & d, const double eps = 1E-8) {
+					T eps1 = 10E-4, eps2 = 0.01, alpha = 5, a_bot = 0, a_top = 0; //
+					T thet1 = 2.0;
+					T thet2 = 0.5;
+					vector_t xk_adk(make_unbounded_array({ -0.5, 0.5 }));
+					xk_adk = (d*alpha) + x;
 
+					int stop_index = 0;
+					while (stop_index < 100000)
+					{
+						stop_index++;
+
+						double temp1 = f(xk_adk) - f(x) - eps1 * alpha * inner_prod(f.gradient(x),d); // <0 true
+						double temp2 = inner_prod(f.gradient(xk_adk),d) - eps2 * inner_prod(f.gradient(x), d); // >0 true
+						if (temp1 <= 0) // value1 - value2 < 0.0...01 ?
+						{
+							if (temp2 >= 0)
+							{
+								break;
+							}
+							else
+							{
+								a_bot = alpha;
+								if (a_top == 0)
+								{
+									alpha = (1 - thet2)*a_bot + thet2*a_top;
+								}
+							}
+						}
+						else
+						{
+							a_top = alpha;
+
+							alpha *= thet1;
+						}
+					}
+					return alpha;
+
+				}
                 template <class T>
                 T find_min(const Function<T> & f, const vector<T> & x, vector<T> const & d, T a, T b, const double eps = 1E-8) {
                     T e = 0;
@@ -55,7 +94,7 @@ namespace boost {
                     d = -prod(eta, grad);
 
                     // Looking for the minimum of F(x - alpha * d) using the method of one-dimensional optimization.
-                    alpha = details::find_min(f, x, d, T(0.0), T(1E3));
+                    alpha = details::wolf_min(f, x, d);
                     BOOST_ASSERT(alpha >= DBL_EPSILON);
 
                     x = x + alpha * d;
